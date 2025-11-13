@@ -11,7 +11,14 @@ interface LearningPathMapProps {
 const LearningPathMap = ({ lessons, progress, pathId }: LearningPathMapProps) => {
   const navigate = useNavigate();
 
-  const getLessonStatus = (lessonId: string) => {
+  const getLessonStatus = (lessonId: string, lessonNumber: number) => {
+    // First lesson is always available
+    if (lessonNumber === 1) {
+      const lessonProgress = progress.find((p) => p.lesson_id === lessonId);
+      if (lessonProgress?.completed) return "completed";
+      return "available";
+    }
+    
     const lessonProgress = progress.find((p) => p.lesson_id === lessonId);
     if (!lessonProgress) return "locked";
     if (lessonProgress.completed) return "completed";
@@ -36,7 +43,7 @@ const LearningPathMap = ({ lessons, progress, pathId }: LearningPathMapProps) =>
       {/* Lessons */}
       <div className="space-y-16">
         {lessons.map((lesson, index) => {
-          const status = getLessonStatus(lesson.id);
+          const status = getLessonStatus(lesson.id, lesson.lesson_number);
           const stars = getLessonStars(lesson.id);
           const isLeft = index % 2 === 0;
 
