@@ -20,15 +20,21 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     for (let i = 0; i < 3 && nextLessonNum + i <= path!.total_lessons; i++) {
-      const topicIndex = Math.floor((nextLessonNum + i - 1) / 3) % path!.topics.length;
+      const currentLessonNum = nextLessonNum + i - 1;
+      const topicIndex = currentLessonNum % path!.topics.length;
       const topic = path!.topics[topicIndex];
+      const subtopicIndex = Math.floor(currentLessonNum / path!.topics.length) % topic.subtopics.length;
+      const subtopic = topic.subtopics[subtopicIndex];
       
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
-          messages: [{ role: 'user', content: `Create lesson on ${topic.title}. Return JSON with: explanations (10 items), quizzes (10 items).` }],
+          messages: [{ 
+            role: 'user', 
+            content: `Create lesson ${nextLessonNum + i} specifically about "${subtopic}" within the topic "${topic.title}". This is a continuation of a progressive learning path on "${path!.title}". Make the content unique and focused on this specific subtopic, building upon previous lessons. Return JSON with: explanations (10 items with title, content - each explaining different aspects of ${subtopic}), quizzes (10 items with question, options array, correctAnswer - testing knowledge of ${subtopic}).` 
+          }],
         }),
       });
       
@@ -43,8 +49,8 @@ serve(async (req) => {
       await supabase.from('lessons').insert({
         learning_path_id: pathId,
         lesson_number: nextLessonNum + i,
-        title: topic.title,
-        topic: topic.subtopics[0],
+        title: `${topic.title}: ${subtopic}`,
+        topic: subtopic,
         explanations: lesson.explanations,
         quizzes: lesson.quizzes,
       });

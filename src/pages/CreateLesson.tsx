@@ -41,11 +41,20 @@ const CreateLesson = () => {
     setLoading(true);
 
     try {
-      // Convert files to base64 for processing
+      // Convert files to text for processing
       const fileContents: string[] = [];
       for (const file of files) {
-        const text = await file.text();
-        fileContents.push(text);
+        try {
+          const text = await file.text();
+          fileContents.push(`File: ${file.name}\n${text}`);
+        } catch (err) {
+          console.error(`Error reading file ${file.name}:`, err);
+          toast({
+            title: "File read error",
+            description: `Could not read ${file.name}. Please try a different file format.`,
+            variant: "destructive",
+          });
+        }
       }
 
       // Call edge function to generate learning path structure

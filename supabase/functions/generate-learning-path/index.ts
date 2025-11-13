@@ -60,15 +60,22 @@ serve(async (req) => {
       topics: parsed.topics,
     }).select().single();
 
-    // Generate first 3 lessons
+    // Generate first 3 lessons with unique content for each
     for (let i = 0; i < Math.min(3, parsed.totalLessons); i++) {
-      const topic = parsed.topics[Math.floor(i / parsed.topics.length)];
+      const topicIndex = i % parsed.topics.length;
+      const topic = parsed.topics[topicIndex];
+      const subtopicIndex = Math.floor(i / parsed.topics.length) % topic.subtopics.length;
+      const subtopic = topic.subtopics[subtopicIndex];
+      
       const lessonResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
-          messages: [{ role: 'user', content: `Create lesson ${i+1} on ${topic.title}. Return JSON with: explanations (10 items with title, content), quizzes (10 items with question, options array, correctAnswer).` }],
+          messages: [{ 
+            role: 'user', 
+            content: `Create lesson ${i+1} specifically about "${subtopic}" within the topic "${topic.title}". This is lesson ${i+1} of a progressive learning path on "${parsed.title}". Make the content unique and focused on this specific subtopic. Return JSON with: explanations (10 items with title, content - each explaining different aspects of ${subtopic}), quizzes (10 items with question, options array, correctAnswer - testing knowledge of ${subtopic}).` 
+          }],
         }),
       });
       
@@ -83,8 +90,8 @@ serve(async (req) => {
       await supabase.from('lessons').insert({
         learning_path_id: path.id,
         lesson_number: i + 1,
-        title: topic.title,
-        topic: topic.subtopics[0] || topic.title,
+        title: `${topic.title}: ${subtopic}`,
+        topic: subtopic,
         explanations: lesson.explanations,
         quizzes: lesson.quizzes,
       });
