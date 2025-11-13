@@ -19,11 +19,27 @@ serve(async (req) => {
     const nextLessonNum = existingLessons!.length + 1;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
+    // Check if lessons already exist to prevent duplicates
+    const { data: checkLessons } = await supabase
+      .from('lessons')
+      .select('lesson_number')
+      .eq('learning_path_id', pathId)
+      .gte('lesson_number', nextLessonNum)
+      .lte('lesson_number', nextLessonNum + 2);
+    
+    if (checkLessons && checkLessons.length > 0) {
+      console.log('Lessons already exist, skipping generation');
+      return new Response(JSON.stringify({ success: true, message: 'Lessons already exist' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     for (let i = 0; i < 3 && nextLessonNum + i <= path!.total_lessons; i++) {
-      const currentLessonNum = nextLessonNum + i - 1;
-      const topicIndex = currentLessonNum % path!.topics.length;
+      const lessonNum = nextLessonNum + i;
+      // Use lessonNum - 1 for zero-based indexing
+      const topicIndex = (lessonNum - 1) % path!.topics.length;
       const topic = path!.topics[topicIndex];
-      const subtopicIndex = Math.floor(currentLessonNum / path!.topics.length) % topic.subtopics.length;
+      const subtopicIndex = Math.floor((lessonNum - 1) / path!.topics.length) % topic.subtopics.length;
       const subtopic = topic.subtopics[subtopicIndex];
       
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -33,7 +49,7 @@ serve(async (req) => {
           model: 'google/gemini-2.5-flash',
           messages: [{ 
             role: 'user', 
-            content: `Create lesson ${nextLessonNum + i} specifically about "${subtopic}" within the topic "${topic.title}". This is a continuation of a progressive learning path on "${path!.title}". Make the content unique and focused on this specific subtopic, building upon previous lessons. Return JSON with: explanations (10 items with title, content - each explaining different aspects of ${subtopic}), quizzes (10 items with question, options array, correctAnswer - testing knowledge of ${subtopic}).` 
+            content: `Create lesson ${lessonNum} specifically about "${subtopic}" within the topic "${topic.title}". This is a continuation of a progressive learning path on "${path!.title}". Make the content unique and focused on this specific subtopic, building upon previous lessons. Return JSON with: explanations (10 items with title, content - each explaining different aspects of ${subtopic}), quizzes (10 items with question, options array, correctAnswer - testing knowledge of ${subtopic}).` 
           }],
         }),
       });
@@ -48,7 +64,7 @@ serve(async (req) => {
       
       await supabase.from('lessons').insert({
         learning_path_id: pathId,
-        lesson_number: nextLessonNum + i,
+        lesson_number: lessonNum,
         title: `${topic.title}: ${subtopic}`,
         topic: subtopic,
         explanations: lesson.explanations,

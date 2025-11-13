@@ -127,14 +127,22 @@ const Lesson = () => {
         }
       }
 
-      // Check if this is a milestone lesson (3, 6, 9, etc.)
+      // Trigger lesson generation for next batch after every 3 lessons
       if (lesson.lesson_number % 3 === 0) {
-        setShowBadgeClaim(true);
-        
-        // Trigger lesson generation for next batch
         await supabase.functions.invoke("extend-learning-path", {
           body: { pathId: lesson.learning_path_id },
         });
+      }
+
+      // Check if this is the LAST lesson in the path
+      const { data: pathData } = await supabase
+        .from("learning_paths")
+        .select("total_lessons")
+        .eq("id", lesson.learning_path_id)
+        .single();
+      
+      if (pathData && lesson.lesson_number === pathData.total_lessons) {
+        setShowBadgeClaim(true);
       }
 
       setShowResults(true);
@@ -152,12 +160,18 @@ const Lesson = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      const { data: pathData } = await supabase
+        .from("learning_paths")
+        .select("title")
+        .eq("id", lesson.learning_path_id)
+        .single();
+
       await supabase.from("badges").insert({
         user_id: user.id,
         learning_path_id: lesson.learning_path_id,
-        badge_type: `milestone_${lesson.lesson_number}`,
-        name: `Lesson ${lesson.lesson_number} Complete!`,
-        description: `Completed lesson ${lesson.lesson_number} with ${earnedStars} stars!`,
+        badge_type: `completion`,
+        name: `${pathData?.title} Master!`,
+        description: `Completed the entire learning path with ${earnedStars} stars on the final lesson!`,
       });
 
       toast({
@@ -333,7 +347,7 @@ const Lesson = () => {
               <div className="space-y-6">
                 <h3 className="text-xl font-semibold">{currentContent.question}</h3>
                 <RadioGroup
-                  value={answers[currentIndex]?.toString()}
+                  value={answers[currentIndex]?.toString() || ""}
                   onValueChange={(value) =>
                     setAnswers({ ...answers, [currentIndex]: value })
                   }
