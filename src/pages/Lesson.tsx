@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronRight, Star, Trophy, Loader2, ArrowLeft } from "lucide-react";
+import { ChevronRight, Star, Trophy, Loader2, ArrowLeft, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ChatSidebar from "@/components/ChatSidebar";
 
 const Lesson = () => {
   const { lessonId } = useParams();
@@ -20,6 +21,9 @@ const Lesson = () => {
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [showResults, setShowResults] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
+  const [showBadgeClaim, setShowBadgeClaim] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [earnedStars, setEarnedStars] = useState(0);
 
   useEffect(() => {
     loadLesson();
@@ -70,6 +74,7 @@ const Lesson = () => {
     setCorrectCount(correct);
     const percentage = (correct / quizzes.length) * 100;
     const stars = percentage >= 90 ? 3 : percentage >= 50 ? 2 : 1;
+    setEarnedStars(stars);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -122,10 +127,48 @@ const Lesson = () => {
         }
       }
 
+      // Check if this is a milestone lesson (3, 6, 9, etc.)
+      if (lesson.lesson_number % 3 === 0) {
+        setShowBadgeClaim(true);
+        
+        // Trigger lesson generation for next batch
+        await supabase.functions.invoke("extend-learning-path", {
+          body: { pathId: lesson.learning_path_id },
+        });
+      }
+
       setShowResults(true);
     } catch (error: any) {
       toast({
         title: "Error saving progress",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleClaimBadge = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from("badges").insert({
+        user_id: user.id,
+        learning_path_id: lesson.learning_path_id,
+        badge_type: `milestone_${lesson.lesson_number}`,
+        name: `Lesson ${lesson.lesson_number} Complete!`,
+        description: `Completed lesson ${lesson.lesson_number} with ${earnedStars} stars!`,
+      });
+
+      toast({
+        title: "Badge Claimed!",
+        description: "Check your achievements in Settings",
+      });
+
+      setShowBadgeClaim(false);
+    } catch (error: any) {
+      toast({
+        title: "Error claiming badge",
         description: error.message,
         variant: "destructive",
       });
@@ -161,8 +204,6 @@ const Lesson = () => {
   const progress = ((currentIndex + 1) / totalItems) * 100;
 
   if (showResults) {
-    const stars = correctCount >= quizzes.length * 0.9 ? 3 : correctCount >= quizzes.length * 0.5 ? 2 : 1;
-
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-success/5 to-primary/5 p-6">
         <Card className="max-w-2xl w-full p-8 text-center space-y-6">
@@ -178,18 +219,46 @@ const Lesson = () => {
           </div>
 
           <div className="flex justify-center gap-2">
-            {Array.from({ length: stars }).map((_, i) => (
-              <Star key={i} className="w-12 h-12 fill-secondary text-secondary" />
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Star
+                key={i}
+                className={cn(
+                  "w-12 h-12",
+                  i < earnedStars
+                    ? "fill-secondary text-secondary"
+                    : "text-muted-foreground"
+                )}
+              />
             ))}
           </div>
 
           <div className="space-y-2">
             <p className="text-lg font-semibold">
-              {stars === 3 && "Perfect! 🎉"}
-              {stars === 2 && "Great job! 👏"}
-              {stars === 1 && "Good effort! Keep practicing! 💪"}
+              {earnedStars === 3 && "Perfect! 🎉"}
+              {earnedStars === 2 && "Great job! 👏"}
+              {earnedStars === 1 && "Good effort! Keep practicing! 💪"}
             </p>
           </div>
+
+          {showBadgeClaim && (
+            <Card className="p-6 bg-gradient-primary border-2 border-secondary">
+              <Award className="w-12 h-12 mx-auto mb-4 text-white" />
+              <h3 className="text-xl font-bold text-white mb-2">
+                Milestone Achievement!
+              </h3>
+              <p className="text-white/90 mb-4">
+                You've completed lesson {lesson.lesson_number}! Claim your badge.
+              </p>
+              <Button
+                onClick={handleClaimBadge}
+                variant="secondary"
+                className="w-full"
+              >
+                <Award className="w-4 h-4 mr-2" />
+                Claim Badge
+              </Button>
+            </Card>
+          )}
 
           <Button
             onClick={() => navigate(`/learning-path/${lesson.learning_path_id}`)}
@@ -205,6 +274,21 @@ const Lesson = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-accent/5 p-6">
+      <Button
+        variant="outline"
+        onClick={() => setIsChatOpen(!isChatOpen)}
+        className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-lg"
+      >
+        💬
+      </Button>
+
+      <ChatSidebar
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        pathId={lesson?.learning_path_id}
+        currentLesson={lesson}
+      />
+
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

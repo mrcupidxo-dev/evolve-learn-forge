@@ -4,9 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, MessageSquare, X, Star } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import LearningPathMap from "@/components/LearningPathMap";
-import ChatSidebar from "@/components/ChatSidebar";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 
@@ -18,26 +17,10 @@ const LearningPath = () => {
   const [path, setPath] = useState<any>(null);
   const [lessons, setLessons] = useState<any[]>([]);
   const [progress, setProgress] = useState<any[]>([]);
-  const [profile, setProfile] = useState<any>(null);
-  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     loadPathData();
-    loadProfile();
   }, [pathId]);
-
-  const loadProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    setProfile(data);
-  };
 
   const loadPathData = async () => {
     try {
@@ -134,36 +117,22 @@ const LearningPath = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-accent/5">
-      <Header currentStreak={profile?.current_streak || 0} />
+      <Header />
       
       <div className="container mx-auto px-4 py-8">
         {/* Path Info */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex-1">
-              <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
-                {path.title}
-              </h1>
-              <p className="text-muted-foreground">{path.description}</p>
-            </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setChatOpen(!chatOpen)}
-              className="ml-4"
-            >
-              <MessageSquare className="w-5 h-5" />
-            </Button>
+          <div className="flex-1">
+            <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
+              {path.title}
+            </h1>
+            <p className="text-muted-foreground">{path.description}</p>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 mt-4">
             <Badge variant="secondary" className="text-sm capitalize">
               {path.difficulty}
             </Badge>
-            <div className="flex items-center gap-1 text-accent">
-              <Star className="w-4 h-4 fill-current" />
-              <span className="font-bold">{profile?.total_stars || 0}</span>
-            </div>
             <span className="text-sm text-muted-foreground">
               {lessons.length} / {path.total_lessons} lessons
             </span>
@@ -193,14 +162,6 @@ const LearningPath = () => {
           pathId={pathId!}
         />
       </div>
-
-      {/* Chat Sidebar */}
-      <ChatSidebar
-        isOpen={chatOpen}
-        onClose={() => setChatOpen(false)}
-        pathId={pathId!}
-        currentLesson={lessons[path.current_lesson - 1]}
-      />
     </div>
   );
 };
