@@ -22,7 +22,11 @@ serve(async (req) => {
     const token = authHeader.replace('Bearer ', '');
     const { data: { user } } = await supabase.auth.getUser(token);
 
-    const systemPrompt = `Generate a structured learning path with topics and subtopics. Return JSON with: title, description, topics (array of {title, subtopics: string[]}), totalLessons.`;
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const systemPrompt = `Generate a structured learning path with topics and subtopics. Return ONLY valid JSON (no markdown) with: title, description, topics (array of {title, subtopics: string[]}), totalLessons.`;
     
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -40,7 +44,11 @@ serve(async (req) => {
     });
 
     const data = await response.json();
-    const content = data.choices[0].message.content;
+    let content = data.choices[0].message.content;
+    
+    // Strip markdown code blocks if present
+    content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
     const parsed = JSON.parse(content);
 
     const { data: path } = await supabase.from('learning_paths').insert({
@@ -65,7 +73,12 @@ serve(async (req) => {
       });
       
       const lessonData = await lessonResponse.json();
-      const lesson = JSON.parse(lessonData.choices[0].message.content);
+      let lessonContent = lessonData.choices[0].message.content;
+      
+      // Strip markdown code blocks if present
+      lessonContent = lessonContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      
+      const lesson = JSON.parse(lessonContent);
       
       await supabase.from('lessons').insert({
         learning_path_id: path.id,
