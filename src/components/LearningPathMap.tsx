@@ -19,9 +19,15 @@ const LearningPathMap = ({ lessons, progress, pathId }: LearningPathMapProps) =>
       return "available";
     }
     
+    // Check if previous lesson is completed
+    const previousLesson = lessons.find((l) => l.lesson_number === lessonNumber - 1);
+    if (previousLesson) {
+      const previousProgress = progress.find((p) => p.lesson_id === previousLesson.id);
+      if (!previousProgress?.completed) return "locked";
+    }
+    
     const lessonProgress = progress.find((p) => p.lesson_id === lessonId);
-    if (!lessonProgress) return "locked";
-    if (lessonProgress.completed) return "completed";
+    if (lessonProgress?.completed) return "completed";
     return "available";
   };
 
