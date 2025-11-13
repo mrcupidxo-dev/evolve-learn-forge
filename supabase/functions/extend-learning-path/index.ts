@@ -33,7 +33,12 @@ serve(async (req) => {
       });
       
       const data = await response.json();
-      const lesson = JSON.parse(data.choices[0].message.content);
+      let lessonContent = data.choices[0].message.content;
+      
+      // Strip markdown code blocks if present
+      lessonContent = lessonContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      
+      const lesson = JSON.parse(lessonContent);
       
       await supabase.from('lessons').insert({
         learning_path_id: pathId,
