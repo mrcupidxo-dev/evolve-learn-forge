@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Trophy, Flame, Loader2, MessageSquare, X } from "lucide-react";
+import { Loader2, MessageSquare, X, Star } from "lucide-react";
 import LearningPathMap from "@/components/LearningPathMap";
 import ChatSidebar from "@/components/ChatSidebar";
-import StreakDisplay from "@/components/StreakDisplay";
+import Header from "@/components/Header";
+import { Badge } from "@/components/ui/badge";
 
 const LearningPath = () => {
   const { pathId } = useParams();
@@ -132,45 +133,45 @@ const LearningPath = () => {
   const showExtendButton = progress.length >= 3 && lessons.length <= path.total_lessons;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-accent/5 p-6">
-      {/* Header */}
-      <div className="max-w-6xl mx-auto mb-8 space-y-6">
-        <div className="flex justify-between items-start">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold">{path.title}</h1>
-            <p className="text-muted-foreground">{path.description}</p>
-            <div className="flex items-center gap-4 text-sm">
-              <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-medium capitalize">
-                {path.difficulty}
-              </span>
-              <span className="flex items-center gap-1 text-muted-foreground">
-                <Trophy className="w-4 h-4" />
-                {profile?.total_stars || 0} total stars
-              </span>
-              <span className="text-muted-foreground">
-                {lessons.length} / {path.total_lessons} lessons
-              </span>
+    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-accent/5">
+      <Header currentStreak={profile?.current_streak || 0} />
+      
+      <div className="container mx-auto px-4 py-8">
+        {/* Path Info */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex-1">
+              <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
+                {path.title}
+              </h1>
+              <p className="text-muted-foreground">{path.description}</p>
             </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <StreakDisplay
-              currentStreak={profile?.current_streak || 0}
-              longestStreak={profile?.longest_streak || 0}
-            />
             <Button
               variant="outline"
               size="icon"
               onClick={() => setChatOpen(!chatOpen)}
-              className="relative"
+              className="ml-4"
             >
               <MessageSquare className="w-5 h-5" />
             </Button>
           </div>
+          
+          <div className="flex items-center gap-4">
+            <Badge variant="secondary" className="text-sm capitalize">
+              {path.difficulty}
+            </Badge>
+            <div className="flex items-center gap-1 text-accent">
+              <Star className="w-4 h-4 fill-current" />
+              <span className="font-bold">{profile?.total_stars || 0}</span>
+            </div>
+            <span className="text-sm text-muted-foreground">
+              {lessons.length} / {path.total_lessons} lessons
+            </span>
+          </div>
         </div>
 
         {showExtendButton && (
-          <Card className="p-4 bg-gradient-secondary/10 border-secondary">
+          <Card className="p-4 mb-8 bg-gradient-to-r from-secondary/10 to-accent/10 border-secondary/20">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold">Ready for more?</h3>
@@ -184,10 +185,8 @@ const LearningPath = () => {
             </div>
           </Card>
         )}
-      </div>
 
-      {/* Learning Path Map */}
-      <div className="max-w-6xl mx-auto">
+        {/* Learning Path Map */}
         <LearningPathMap
           lessons={lessons}
           progress={progress}
