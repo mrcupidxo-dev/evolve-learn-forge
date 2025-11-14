@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Upload, X, Sparkles, Loader2 } from "lucide-react";
+import { FileText, Upload, X, Sparkles, Loader2, Clock } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useJobPolling } from "@/hooks/useJobPolling";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const CreateLesson = () => {
   const navigate = useNavigate();
@@ -17,6 +19,27 @@ const CreateLesson = () => {
   const [difficulty, setDifficulty] = useState<"beginner" | "intermediate" | "advanced">("beginner");
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Job polling hook
+  const { job, isPolling, startPolling } = useJobPolling(
+    (completedJob) => {
+      // On job completion
+      toast({
+        title: "Learning path created!",
+        description: "Your personalized roadmap is ready",
+      });
+      navigate(`/learning-path/${completedJob.result_data.learningPathId}`);
+    },
+    (errorMessage) => {
+      // On job error
+      toast({
+        title: "Failed to create path",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      setLoading(false);
+    }
+  );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -42,11 +65,11 @@ const CreateLesson = () => {
 
     try {
       // Convert files to text for processing
-      const fileContents: string[] = [];
+      let fileContents = "";
       for (const file of files) {
         try {
           const text = await file.text();
-          fileContents.push(`File: ${file.name}\n${text}`);
+          fileContents += `File: ${file.name}\n${text}\n\n`;
         } catch (err) {
           console.error(`Error reading file ${file.name}:`, err);
           toast({
@@ -57,23 +80,41 @@ const CreateLesson = () => {
         }
       }
 
-      // Call edge function to generate learning path structure
-      const { data, error } = await supabase.functions.invoke("generate-learning-path", {
+      // Call new job-based edge function
+      const { data, error } = await supabase.functions.invoke("create-path-job", {
         body: {
           prompt: prompt.trim(),
-          fileContents,
+          fileContents: fileContents || undefined,
           difficulty,
+          fileName: files[0]?.name,
+          fileSize: files[0]?.size,
+          mimeType: files[0]?.type,
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Check for rate limit error
+        if (error.message?.includes('Rate limit')) {
+          toast({
+            title: "Rate limit exceeded",
+            description: error.message,
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+        throw error;
+      }
 
+      // Start polling for job completion
+      console.log('Job created, starting polling:', data.jobId);
+      startPolling(data.jobId);
+      
       toast({
-        title: "Learning path created!",
-        description: "Your personalized roadmap is ready",
+        title: "Generation started",
+        description: "Your learning path is being created. This may take 30-60 seconds.",
       });
 
-      navigate(`/learning-path/${data.pathId}`);
     } catch (error: any) {
       console.error("Error creating learning path:", error);
       toast({
@@ -81,7 +122,6 @@ const CreateLesson = () => {
         description: error.message || "Please try again",
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
   };
@@ -197,15 +237,33 @@ const CreateLesson = () => {
               </Select>
             </div>
 
+            {/* Job Status Indicator */}
+            {(loading || isPolling) && job && (
+              <Alert className="border-primary/20 bg-primary/5">
+                <Clock className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-1">
+                    <p className="font-medium">
+                      {job.status === 'pending' && 'Waiting in queue...'}
+                      {job.status === 'processing' && 'Generating your learning path...'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      This may take 30-60 seconds. Please don't close this page.
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
             <Button
               onClick={handleCreatePath}
-              disabled={loading}
+              disabled={loading || isPolling}
               className="w-full bg-gradient-primary hover:opacity-90 text-white font-semibold shadow-md h-12"
             >
-              {loading ? (
+              {(loading || isPolling) ? (
                 <span className="flex items-center gap-2">
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Generating your learning path...
+                  {isPolling ? 'Creating lessons...' : 'Starting generation...'}
                 </span>
               ) : (
                 <span className="flex items-center gap-2">

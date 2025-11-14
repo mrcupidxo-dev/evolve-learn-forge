@@ -47,6 +47,57 @@ export type Database = {
         }
         Relationships: []
       }
+      jobs: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          idempotency_key: string | null
+          input_data: Json
+          job_type: Database["public"]["Enums"]["job_type"]
+          max_attempts: number
+          metadata: Json | null
+          result_data: Json | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["job_status"]
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string | null
+          input_data?: Json
+          job_type: Database["public"]["Enums"]["job_type"]
+          max_attempts?: number
+          metadata?: Json | null
+          result_data?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string | null
+          input_data?: Json
+          job_type?: Database["public"]["Enums"]["job_type"]
+          max_attempts?: number
+          metadata?: Json | null
+          result_data?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       learning_paths: {
         Row: {
           created_at: string | null
@@ -220,15 +271,130 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          action_type: string
+          count: number
+          created_at: string
+          id: string
+          metadata: Json | null
+          updated_at: string
+          user_id: string
+          window_end: string
+          window_start: string
+        }
+        Insert: {
+          action_type: string
+          count?: number
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          updated_at?: string
+          user_id: string
+          window_end: string
+          window_start?: string
+        }
+        Update: {
+          action_type?: string
+          count?: number
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          updated_at?: string
+          user_id?: string
+          window_end?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
+      uploaded_files: {
+        Row: {
+          deleted_at: string | null
+          file_size: number
+          id: string
+          is_deleted: boolean
+          last_accessed_at: string | null
+          metadata: Json | null
+          mime_type: string
+          original_filename: string
+          storage_bucket: string
+          storage_path: string
+          uploaded_at: string
+          user_id: string
+        }
+        Insert: {
+          deleted_at?: string | null
+          file_size: number
+          id?: string
+          is_deleted?: boolean
+          last_accessed_at?: string | null
+          metadata?: Json | null
+          mime_type: string
+          original_filename: string
+          storage_bucket?: string
+          storage_path: string
+          uploaded_at?: string
+          user_id: string
+        }
+        Update: {
+          deleted_at?: string | null
+          file_size?: number
+          id?: string
+          is_deleted?: boolean
+          last_accessed_at?: string | null
+          metadata?: Json | null
+          mime_type?: string
+          original_filename?: string
+          storage_bucket?: string
+          storage_path?: string
+          uploaded_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
+      job_status:
+        | "pending"
+        | "processing"
+        | "completed"
+        | "failed"
+        | "cancelled"
+      job_type: "generate_path" | "extend_path"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -355,6 +521,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+      job_status: ["pending", "processing", "completed", "failed", "cancelled"],
+      job_type: ["generate_path", "extend_path"],
+    },
   },
 } as const

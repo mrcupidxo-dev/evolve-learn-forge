@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import LearningPathMap from "@/components/LearningPathMap";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
+import { useJobPolling } from "@/hooks/useJobPolling";
 
 const LearningPath = () => {
   const { pathId } = useParams();
@@ -66,28 +67,38 @@ const LearningPath = () => {
     }
   };
 
+  const { startPolling: startExtendPolling } = useJobPolling(
+    () => {
+      toast({ title: "Path extended!", description: "New lessons added" });
+      loadPathData();
+      setLoading(false);
+    },
+    (error) => {
+      toast({ title: "Extension failed", description: error, variant: "destructive" });
+      setLoading(false);
+    }
+  );
+
   const handleExtendPath = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("extend-learning-path", {
+      const { data, error } = await supabase.functions.invoke("extend-path-job", {
         body: { pathId },
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('Rate limit')) {
+          toast({ title: "Rate limit", description: error.message, variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+        throw error;
+      }
 
-      toast({
-        title: "Path extended!",
-        description: "New lessons have been added",
-      });
-
-      loadPathData();
+      toast({ title: "Extension started", description: "Generating new lessons..." });
+      startExtendPolling(data.jobId);
     } catch (error: any) {
-      toast({
-        title: "Failed to extend path",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
+      toast({ title: "Failed to extend", description: error.message, variant: "destructive" });
       setLoading(false);
     }
   };

@@ -1,1 +1,13 @@
 project_id = "czrmuxaeciofiloxszso"
+
+[functions.create-path-job]
+verify_jwt = true
+
+[functions.extend-path-job]
+verify_jwt = true
+
+[functions.process-jobs]
+verify_jwt = false
+
+[functions.ai-chat]
+verify_jwt = true
