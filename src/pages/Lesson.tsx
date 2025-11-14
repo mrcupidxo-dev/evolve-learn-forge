@@ -24,6 +24,7 @@ const Lesson = () => {
   const [showBadgeClaim, setShowBadgeClaim] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [earnedStars, setEarnedStars] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     loadLesson();
@@ -65,6 +66,7 @@ const Lesson = () => {
   };
 
   const handleComplete = async () => {
+    setSubmitting(true);
     const quizzes = lesson?.quizzes || [];
     let correct = 0;
 
@@ -157,6 +159,8 @@ const Lesson = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -379,12 +383,21 @@ const Lesson = () => {
 
             <Button
               onClick={handleNext}
-              disabled={!isExplanation && !answers[currentIndex]}
+              disabled={submitting || (!isExplanation && !answers[currentIndex])}
               className="w-full bg-gradient-primary text-white font-semibold"
               size="lg"
             >
-              {currentIndex === totalItems - 1 ? "Complete Lesson" : "Next"}
-              <ChevronRight className="w-5 h-5 ml-2" />
+              {submitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  {currentIndex === totalItems - 1 ? "Complete Lesson" : "Next"}
+                  <ChevronRight className="w-5 h-5 ml-2" />
+                </>
+              )}
             </Button>
           </div>
         </Card>

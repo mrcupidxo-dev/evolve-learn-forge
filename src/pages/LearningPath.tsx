@@ -149,7 +149,14 @@ const LearningPath = () => {
                 </p>
               </div>
               <Button onClick={handleExtendPath} disabled={loading} className="bg-gradient-secondary">
-                Extend Path
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Extending...
+                  </>
+                ) : (
+                  "Extend Path"
+                )}
               </Button>
             </div>
           </Card>
