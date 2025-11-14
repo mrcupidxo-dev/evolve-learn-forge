@@ -39,11 +39,6 @@ const Lesson = () => {
         .single();
 
       if (error) throw error;
-      
-      console.log("Loaded lesson:", data);
-      console.log("Explanations count:", data?.explanations?.length);
-      console.log("Quizzes count:", data?.quizzes?.length);
-      
       setLesson(data);
     } catch (error: any) {
       toast({
