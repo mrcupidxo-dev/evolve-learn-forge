@@ -85,12 +85,21 @@ export function useJobPolling(
     setIsPolling(true);
     setError(null);
 
+    // Trigger job processing immediately
+    supabase.functions.invoke('process-jobs').catch(err => {
+      console.error('Failed to trigger job processing:', err);
+    });
+
     // Immediate first fetch
     fetchJobStatus(id);
 
-    // Poll every 2 seconds
+    // Poll every 2 seconds and trigger processing
     const interval = setInterval(() => {
       fetchJobStatus(id);
+      // Trigger processing on each poll to ensure jobs get processed
+      supabase.functions.invoke('process-jobs').catch(err => {
+        console.error('Failed to trigger job processing:', err);
+      });
     }, 2000);
 
     setPollInterval(interval);
