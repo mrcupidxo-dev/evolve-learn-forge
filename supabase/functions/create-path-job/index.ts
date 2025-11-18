@@ -21,8 +21,8 @@ function validateInput(input: any): { valid: boolean; error?: string; data?: Cre
   if (!input.prompt || typeof input.prompt !== 'string') {
     return { valid: false, error: 'prompt is required and must be a string' };
   }
-  if (input.prompt.length < 10) {
-    return { valid: false, error: 'prompt must be at least 10 characters' };
+  if (input.prompt.trim().length === 0) {
+    return { valid: false, error: 'prompt cannot be empty' };
   }
   if (input.prompt.length > 1000) {
     return { valid: false, error: 'prompt must be less than 1000 characters' };
