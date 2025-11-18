@@ -61,7 +61,20 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('authorization');
+    // Create Supabase client with service role for server-side operations
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+
+    // Get user from JWT token in Authorization header
+    const authHeader = req.headers.get('Authorization') ?? req.headers.get('authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
         status: 401,
@@ -69,14 +82,12 @@ serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Extract JWT token and verify
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    
     if (userError || !user) {
+      console.error('Auth error:', userError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -93,7 +104,7 @@ serve(async (req) => {
     }
 
     // Verify user owns this path
-    const { data: path, error: pathError } = await supabase
+    const { data: path, error: pathError } = await supabaseAdmin
       .from('learning_paths')
       .select('*')
       .eq('id', pathId)
@@ -108,7 +119,7 @@ serve(async (req) => {
     }
 
     // Check if path is already at max lessons
-    const { data: existingLessons } = await supabase
+    const { data: existingLessons } = await supabaseAdmin
       .from('lessons')
       .select('lesson_number')
       .eq('learning_path_id', pathId)
@@ -128,7 +139,7 @@ serve(async (req) => {
     }
 
     // Check for pending or processing extension jobs for this path
-    const { data: pendingJobs } = await supabase
+    const { data: pendingJobs } = await supabaseAdmin
       .from('jobs')
       .select('*')
       .eq('user_id', user.id)
@@ -147,7 +158,7 @@ serve(async (req) => {
     }
 
     // Check rate limit
-    const rateLimitCheck = await checkRateLimit(supabase, user.id);
+    const rateLimitCheck = await checkRateLimit(supabaseAdmin, user.id);
     if (!rateLimitCheck.allowed) {
       return new Response(JSON.stringify({ error: rateLimitCheck.error }), {
         status: 429,
@@ -157,7 +168,7 @@ serve(async (req) => {
 
     // Create job
     const idempotencyKey = `extend_path_${pathId}_${Date.now()}`;
-    const { data: job, error: jobError } = await supabase
+    const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
       .insert({
         user_id: user.id,

@@ -116,8 +116,20 @@ serve(async (req) => {
   }
 
   try {
-    // Get authenticated user
-    const authHeader = req.headers.get('authorization');
+    // Create Supabase client with service role for server-side operations
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+
+    // Get user from JWT token in Authorization header
+    const authHeader = req.headers.get('Authorization') ?? req.headers.get('authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
         status: 401,
@@ -125,14 +137,12 @@ serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Extract JWT token and verify
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    
     if (userError || !user) {
+      console.error('Auth error:', userError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -151,7 +161,7 @@ serve(async (req) => {
     }
 
     // Check rate limit
-    const rateLimitCheck = await checkRateLimit(supabase, user.id);
+    const rateLimitCheck = await checkRateLimit(supabaseAdmin, user.id);
     if (!rateLimitCheck.allowed) {
       return new Response(JSON.stringify({ error: rateLimitCheck.error }), {
         status: 429,
@@ -163,7 +173,7 @@ serve(async (req) => {
     const idempotencyKey = `create_path_${user.id}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
     // Create job in database
-    const { data: job, error: jobError } = await supabase
+    const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
       .insert({
         user_id: user.id,
